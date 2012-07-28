@@ -31,11 +31,18 @@ var fixtures = {
     , createdAt: now // now is run every time we use it, and its return value
                      // is assigned to createdAt
     }
+    // And create a user we'll alias as nate
+  , nate: {
+      name: 'Nate'
+    , location: 'San Francisco'
+    , groupId: fixture('groups', 'derby', 'id')
+    , createdAt: now
+    }
   }
 
   // For the groups namespace
 , groups: {
-    // Create a user we'll alias as derby
+    // Create a group we'll alias as derby
     derby: {
       name: 'Derby'
     , createdAt: now
@@ -73,14 +80,22 @@ store.add('groups', {
   , location: 'San Francisco'
   , groupId: groupId
   , createdAt: new Date
-  }, function (err, userId) {
-    store.add('roles', {
-      groupId: groupId
-    , userId: userId
-    , roles: ['Admin']
+  }, function (err, brianId) {
+    store.add('users', {
+      name: 'Nate'
+    , location: 'San Francisco'
+    , groupId: groupId
     , createdAt: new Date
-    }, function (err, roleId) {
-      console.log(err, !!err);
+    }, function (err, nateId) {
+        store.add('roles', {
+          groupId: groupId
+        , userId: brianId
+        , roles: ['Admin']
+        , createdAt: new Date
+        }, function (err, roleId) {
+          console.log(err, !!err);
+        });
+      })
     });
   });
 });

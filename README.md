@@ -6,8 +6,11 @@ Declarative data fixtures for Racer
 # Instructions
 
 Fixtures come in handy for tests, creating sample data for an app, and other
-similar situations. `racer-fixtures` makes it easy to declare what data to
-create without figuring out in what order to create the data:
+similar situations. `racer-fixtures` makes it easy to generate fixtures using a
+straightforward JSON structure and without needing to figure out in what order
+to create documents that are dependent on one another.
+
+Let's take a look at an example:
 
 ```javascript
 var store = racer.createStore();
@@ -25,17 +28,23 @@ var fixtures = {
       name: 'Brian'
     , location: 'San Francisco'
     , groupId: fixture('groups', 'derby', 'id')
-    , createdAt: now
+    , createdAt: now // now is run every time we use it, and its return value
+                     // is assigned to createdAt
     }
   }
 
+  // For the groups namespace
 , groups: {
+    // Create a user we'll alias as derby
     derby: {
       name: 'Derby'
     , createdAt: now
     }
   }
+
+  // For the roles namespace
 , roles: {
+    // Create a role that we'll alias as admin
     admin: {
       groupId: fixture('groups', 'derby', 'id')
     , userId: fixture('users', 'brian', 'id')

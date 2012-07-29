@@ -113,7 +113,6 @@ function createDoc (store, ns, alias, doc, promisesByNs, ignore) {
   }
   store.get(ns, function(err, coll) {
     for (k in coll) {
-      console.log(doc, coll[k], ignore, deepEqual(doc, coll[k], ignore))
       if (deepEqual(doc, coll[k], ignore)) return;
     }
     store.add(ns, doc, function (err, id) {

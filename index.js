@@ -1,8 +1,10 @@
 // TODO Incorporate Store#fetchOrCreate (requires matching to query motifs)
 var debug = require('debug')('fixtures')
   , inspect = require('util').inspect
-  , deepEqual
-  , Promise
+  , objectUtils = require('racer-util/object')
+  , deepEqual = objectUtils.deepEqual
+  , assign = objectUtils.assign
+  ;
 
 module.exports = {
   fixture: fixture
@@ -25,11 +27,12 @@ function unique (value) {
   }
 }
 
-function loadFixtures (fixtures, store, cb) {
-  Promise = store.racer.util.Promise;
-  deepEqual = store.racer.util.deepEqual;
+function loadFixtures (fixtures, store, cb, altNsTargets) {
+  var Promise = store.racer.util.Promise;
 
   var promisesByNs = {};
+
+  var collectionPromises = {};
 
   for (var currNs in fixtures) {
     var docs = fixtures[currNs];
@@ -39,21 +42,29 @@ function loadFixtures (fixtures, store, cb) {
       promisesByNs[currNs][currAlias] = promisesByNs[currNs][currAlias] || new Promise;
       var deps = [];
       var ignore = ['id'];
-      for (var property in doc) {
-        var value = doc[property];
-        if (value.$fixture) {
-          ignore.push(property);
+      parseDoc(doc, {
+        onFixture: function (path, ns, alias, prop) {
+          ignore.push(path);
           deps.push({
-            ns: value.ns
-          , alias: value.alias
-          , prop: value.prop
-          , property: property
+            ns: ns
+          , alias: alias
+          , prop: prop
+          , property: path
           });
-        } else if (value.$unique) {
+        }
+      , onIgnore: function (property, value) {
           ignore.push(property);
           value = value.value;
         }
+      });
+
+      var collPromise = collectionPromises[currNs] = new Promise;
+      if (altNsTargets && altNsTargets[currNs]) {
+        altNsTargets[currNs](store, collPromise.resolve.bind(collPromise));
+      } else {
+        store.get(currNs, collPromise.resolve.bind(collPromise));
       }
+
       if (deps.length) {
         var depPromises = {};
         for (var i = deps.length; i--; ) {
@@ -63,14 +74,14 @@ function loadFixtures (fixtures, store, cb) {
             , property = dep.property
             , prop = dep.prop;
           promisesByNs[ns] = promisesByNs[ns] || {};
-          var key = ns + '.' + alias + '.' + property + ':' + (prop || '');
+          var key = ns + ':' + alias + ':' + property + ':' + (prop || '');
           depPromises[key] = promisesByNs[ns][alias] = promisesByNs[ns][alias] || new Promise;
         }
         Promise.parallel(depPromises).on(
-          promiseCallback(store, doc, currNs, currAlias, promisesByNs, ignore)
+          promiseCallback(store, doc, currNs, collPromise, currAlias, promisesByNs, ignore)
         );
       } else {
-        createDoc(store, currNs, currAlias, doc, promisesByNs, ignore);
+        createDoc(store, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
       }
     }
   }
@@ -88,30 +99,30 @@ function loadFixtures (fixtures, store, cb) {
   totalPromise.on( function (err) { cb(err, !!err); });
 }
 
-function promiseCallback (store, doc, currNs, currAlias, promisesByNs, ignore) {
+function promiseCallback (store, doc, currNs, collPromise, currAlias, promisesByNs, ignore) {
   return function (err, values) {
+    if (err) throw err;
     for (var key in values) {
-      var val = values[key];
-      var pair = key.split(':')
-        , joinedTriplet = pair[0]
-        , _prop = pair[1]
-        , triplet = joinedTriplet.split('.')
-        , _ns = triplet[0]
-        , _alias = triplet[1]
-        , _property = triplet[2];
-      doc[_property] = _prop ? val[_prop] : val;
+      var val       = values[key]
+        , quad      = key.split(':')
+        , _ns       = quad[0]
+        , _alias    = quad[1]
+        , _property = quad[2]
+        , _prop     = quad[3]
+      assign(doc, _property, _prop ? val[_prop] : val);
     }
-    createDoc(store, currNs, currAlias, doc, promisesByNs, ignore);
+    createDoc(store, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
   };
 }
 
-function createDoc (store, ns, alias, doc, promisesByNs, ignore) {
+function createDoc (store, ns, collPromise, alias, doc, promisesByNs, ignore) {
   var k, v;
   for (k in doc) {
     v = doc[k];
     if (typeof v === 'function') doc[k] = v();
   }
-  store.get(ns, function(err, coll) {
+  collPromise.on( function (err, coll) {
+    if (err) throw err;
     for (k in coll) {
       if (deepEqual(doc, coll[k], ignore)) return;
     }
@@ -122,4 +133,22 @@ function createDoc (store, ns, alias, doc, promisesByNs, ignore) {
       promisesByNs[ns][alias].resolve(err, doc);
     });
   });
+}
+
+function parseDoc (doc, cbs, prefix) {
+  prefix = prefix || '';
+  var onFixture = cbs.onFixture
+    , onIgnore = cbs.onIgnore
+    ;
+  for (var property in doc) {
+    var value = doc[property];
+    if (value.constructor !== Object) continue;
+    if (value.$fixture) {
+      onFixture((prefix ? prefix + '.' : '') + property, value.ns, value.alias, value.prop);
+    } else if (value.$unique) {
+      onIgnore((prefix ? prefix + '.' : '') + property, value);
+    } else {
+      parseDoc(value, cbs, (prefix ? prefix + '.' : '') + property);
+    }
+  }
 }

@@ -11,7 +11,8 @@
     "url": "git://github.com/codeparty/racer-fixtures.git"
   },
   "dependencies": {
-    "debug": "0.7.x"
+    "debug": "0.7.x",
+    "racer-util": "0.0.3"
   },
   "keywords": [
     "fixtures",

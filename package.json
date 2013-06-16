@@ -1,6 +1,6 @@
 {
   "name": "racer-fixtures",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Declarative data fixtures for Racer",
   "main": "index.js",
   "scripts": {

@@ -71,29 +71,30 @@ function now () { return new Date; }
 This would run code with an equivalent result to the following in racer:
 
 ```javascript
-store.add('groups', {
+var model = store.createModel();
+var groupId = model.add('groups', {
   name: 'Admin'
 , createdAt: new Date
-}, function (err, groupId) {
-  store.add('users', {
+}, function (err) {
+  var brianId = model.add('users', {
     name: 'Brian'
   , location: 'San Francisco'
   , groupId: groupId
   , createdAt: new Date
-  }, function (err, brianId) {
-    store.add('users', {
+  }, function (err) {
+    var nateId = model.add('users', {
       name: 'Nate'
     , location: 'San Francisco'
     , groupId: groupId
     , createdAt: new Date
-    }, function (err, nateId) {
-        store.add('roles', {
+    }, function (err) {
+        var roleId = store.add('roles', {
           groupId: groupId
         , userId: brianId
         , roles: ['Admin']
         , createdAt: new Date
-        }, function (err, roleId) {
-          console.log(err, !!err);
+        }, function (err) {
+          console.log(err, !err);
         });
       })
     });
@@ -107,7 +108,7 @@ should look like using a JSON format with which everyone is familiar, plus a
 `fixture` helper function.
 
 ### MIT License
-Copyright (c) 2012 by Brian Noguchi and Nate Smith
+Copyright (c) 2013 by Brian Noguchi and Nate Smith
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

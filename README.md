@@ -61,8 +61,9 @@ var fixtures = {
   }
 };
 
-loadFixtures(fixtures, store, function (err, didSucceed) {
+loadFixtures(fixtures, store, function (err, didSucceed, createdDocs) {
   console.log(err, didSucceed);
+  console.log(createdDocs.users.brian.name); // Outputs 'Brian' to the console
 });
 
 function now () { return new Date; }

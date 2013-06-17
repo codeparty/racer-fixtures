@@ -93,16 +93,23 @@ function loadFixtures (fixtures, store, cb, altNsTargets) {
   }
 
   var allPromises = {};
+  var createdDocs = {};
   for (var ns in promisesByNs) {
     var proms = promisesByNs[ns];
+    createdDocs[ns] = {};
     for (var alias in proms) {
       var promise = proms[alias];
       allPromises[ns + '.' + alias] = promise;
+      promise.on( (function (ns, alias) {
+        return function (err, doc) {
+          createdDocs[ns][alias] = doc;
+        };
+      })(ns, alias));
     }
   }
 
   var totalPromise = Promise.parallel(allPromises);
-  totalPromise.on( function (err) { cb(err, !err); });
+  totalPromise.on( function (err) { cb(err, !err, createdDocs); });
 }
 
 function promiseCallback (model, doc, currNs, collPromise, currAlias, promisesByNs, ignore) {

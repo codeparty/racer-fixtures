@@ -4,6 +4,7 @@ var debug = require('debug')('fixtures')
   , objectUtils = require('racer-util/object')
   , deepEqual = objectUtils.deepEqual
   , assign = objectUtils.assign
+  , Promise = require('./Promise')
   ;
 
 module.exports = {
@@ -28,7 +29,7 @@ function unique (value) {
 }
 
 function loadFixtures (fixtures, store, cb, altNsTargets) {
-  var Promise = store.racer.util.Promise;
+  var model = store.createModel();
 
   var promisesByNs = {};
 
@@ -60,9 +61,14 @@ function loadFixtures (fixtures, store, cb, altNsTargets) {
 
       var collPromise = collectionPromises[currNs] = new Promise;
       if (altNsTargets && altNsTargets[currNs]) {
-        altNsTargets[currNs](store, collPromise.resolve.bind(collPromise));
+        altNsTargets[currNs](model, collPromise.resolve.bind(collPromise));
       } else {
-        store.get(currNs, collPromise.resolve.bind(collPromise));
+        model.fetch(currNs, (function (currNs, collPromise) {
+          return function (err) {
+            if (err) return collPromise.resolve(err);
+            collPromise.resolve(null, model.get(currNs));
+          };
+        })(currNs, collPromise));
       }
 
       if (deps.length) {
@@ -78,10 +84,10 @@ function loadFixtures (fixtures, store, cb, altNsTargets) {
           depPromises[key] = promisesByNs[ns][alias] = promisesByNs[ns][alias] || new Promise;
         }
         Promise.parallel(depPromises).on(
-          promiseCallback(store, doc, currNs, collPromise, currAlias, promisesByNs, ignore)
+          promiseCallback(model, doc, currNs, collPromise, currAlias, promisesByNs, ignore)
         );
       } else {
-        createDoc(store, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
+        createDoc(model, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
       }
     }
   }
@@ -96,10 +102,10 @@ function loadFixtures (fixtures, store, cb, altNsTargets) {
   }
 
   var totalPromise = Promise.parallel(allPromises);
-  totalPromise.on( function (err) { cb(err, !!err); });
+  totalPromise.on( function (err) { cb(err, !err); });
 }
 
-function promiseCallback (store, doc, currNs, collPromise, currAlias, promisesByNs, ignore) {
+function promiseCallback (model, doc, currNs, collPromise, currAlias, promisesByNs, ignore) {
   return function (err, values) {
     if (err) throw err;
     for (var key in values) {
@@ -111,11 +117,11 @@ function promiseCallback (store, doc, currNs, collPromise, currAlias, promisesBy
         , _prop     = quad[3]
       assign(doc, _property, _prop ? val[_prop] : val);
     }
-    createDoc(store, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
+    createDoc(model, currNs, collPromise, currAlias, doc, promisesByNs, ignore);
   };
 }
 
-function createDoc (store, ns, collPromise, alias, doc, promisesByNs, ignore) {
+function createDoc (model, ns, collPromise, alias, doc, promisesByNs, ignore) {
   var k, v;
   for (k in doc) {
     v = doc[k];
@@ -126,7 +132,7 @@ function createDoc (store, ns, collPromise, alias, doc, promisesByNs, ignore) {
     for (k in coll) {
       if (deepEqual(doc, coll[k], ignore)) return;
     }
-    store.add(ns, doc, function (err, id) {
+    var id = model.add(ns, doc, function (err) {
       if (err) throw err;
       doc.id = id;
       debug('CREATED ' + ns + ' ' + alias + " \n" + inspect(doc, false, null));

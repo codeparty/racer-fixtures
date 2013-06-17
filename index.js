@@ -143,12 +143,16 @@ function createDoc (model, ns, collPromise, alias, doc, promisesByNs, ignore) {
 
 function parseDoc (doc, cbs, prefix) {
   prefix = prefix || '';
-  var onFixture = cbs.onFixture
-    , onIgnore = cbs.onIgnore
-    ;
-  for (var property in doc) {
-    var value = doc[property];
-    if (value.constructor !== Object) continue;
+  var onFixture = cbs.onFixture;
+  var onIgnore = cbs.onIgnore;
+  var iterator = (Array.isArray(doc)) ?
+    eachMember :
+    eachChild;
+  iterator(doc, function (value, property) {
+    if (Array.isArray(value)) {
+      return parseDoc(value, cbs, (prefix ? prefix + '.' : '') + property);
+    }
+    if (value.constructor !== Object) return;
     if (value.$fixture) {
       onFixture((prefix ? prefix + '.' : '') + property, value.ns, value.alias, value.prop);
     } else if (value.$unique) {
@@ -156,5 +160,13 @@ function parseDoc (doc, cbs, prefix) {
     } else {
       parseDoc(value, cbs, (prefix ? prefix + '.' : '') + property);
     }
-  }
+  });
+}
+
+function eachChild (object, cb) {
+  for (var k in object) cb(object[k], k);
+}
+
+function eachMember (array, cb) {
+  array.forEach(cb);
 }

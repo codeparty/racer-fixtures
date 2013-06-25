@@ -5,6 +5,7 @@ var debug = require('debug')('fixtures')
   , deepEqual = objectUtils.deepEqual
   , assign = objectUtils.assign
   , Promise = require('./Promise')
+  , deepCopy = require('racer-util/object').deepCopy
   ;
 
 module.exports = {
@@ -39,7 +40,7 @@ function loadFixtures (fixtures, store, cb, altNsTargets) {
     var docs = fixtures[currNs];
     promisesByNs[currNs] = promisesByNs[currNs] || {};
     for (var currAlias in docs) {
-      var doc = docs[currAlias];
+      var doc = deepCopy(docs[currAlias]);
       promisesByNs[currNs][currAlias] = promisesByNs[currNs][currAlias] || new Promise;
       var deps = [];
       var ignore = ['id'];
